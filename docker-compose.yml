@@ -9,8 +9,9 @@ services:
       TZ: Asia/Shanghai
       MYSQL_ROOT_PASSWORD: "123456"
     volumes:
-      - "./db/init:/docker-entrypoint-initdb.d"    # 首次启动时自动执行 SQL 文件
-      - "mysql-data:/var/lib/mysql"                 # 数据持久化
+      - "/usr/local/app/mysql/init:/docker-entrypoint-initdb.d"    # 首次启动时自动执行 SQL 文件
+      - "/usr/local/app/mysql/data:/var/lib/mysql"                 # 数据持久化
+      - "/usr/local/app/mysql/conf:/etc/mysql/conf.d"              # MySQL 配置文件
     networks:
       - tlias-net
 
@@ -43,5 +44,3 @@ networks:
   tlias-net:
     name: tlias-net
 
-volumes:
-  mysql-data:
