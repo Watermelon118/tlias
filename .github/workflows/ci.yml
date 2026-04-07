@@ -1,0 +1,36 @@
+# ============================================
+# 你的第一个 GitHub Actions 工作流
+# ============================================
+
+name: CI - 后端编译                  # 工作流的名字，会显示在 GitHub 页面上
+
+# ---- 触发条件 ----
+on:
+  push:                              # 当 push 代码时触发
+    branches: [ main ]               # 只有 push 到 main 分支才触发
+
+# ---- 要执行的任务 ----
+jobs:
+  build-backend:                     # 任务ID，自己起名
+    name: 编译后端项目                # 显示在 GitHub 上的任务名
+    runs-on: ubuntu-latest           # 在 GitHub 提供的 Ubuntu 服务器上运行（免费）
+
+    steps:
+      # 第1步：拉取代码
+      # GitHub 服务器是空的，需要先把你的代码拉下来
+      - name: 拉取代码
+        uses: actions/checkout@v4    # 这是 GitHub 官方提供的"动作"，专门用来拉代码
+
+      # 第2步：安装 JDK 17
+      # 服务器上默认没有 JDK，需要装一个
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'    # JDK 发行版，temurin 是最常用的
+
+      # 第3步：用 Maven 编译打包
+      # 相当于你在本地执行 mvn package
+      - name: Maven 编译打包
+        run: mvn clean package -DskipTests
+        working-directory: tlias-web-management    # 指定在后端目录下执行
