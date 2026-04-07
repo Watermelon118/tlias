@@ -16,7 +16,7 @@ services:
 
   # ---- 后端 ----
   tlias-server:
-    image: tlias-server:latest
+    image: deto2y14/tlias-server:latest
     container_name: tlias-server
     ports:
       - "8080:8080"
@@ -30,7 +30,7 @@ services:
 
   # ---- 前端 (Nginx) ----
   tlias-nginx:
-    image: tlias-nginx:latest
+    image: deto2y14/tlias-nginx:latest
     container_name: tlias-nginx
     ports:
       - "80:80"
