@@ -1,23 +1,19 @@
 # ============================================
-# CI 工作流 - 后端编译 + 前端构建（并行执行）
+# CI 工作流 - 编译 + 构建 Docker 镜像
 # ============================================
 
-name: CI                             # 工作流名字
+name: CI
 
-# ---- 触发条件 ----
 on:
   push:
     branches: [ main ]
 
-# ---- 要执行的任务 ----
-# 两个 Job 没有依赖关系，GitHub 会同时启动两台服务器并行跑
 jobs:
 
   # ========== 任务1：编译后端 ==========
   build-backend:
     name: 编译后端项目
     runs-on: ubuntu-latest
-
     steps:
       - name: 拉取代码
         uses: actions/checkout@v4
@@ -32,24 +28,77 @@ jobs:
         run: mvn clean package -DskipTests
         working-directory: tlias-web-management
 
+      # 新增：把打好的 jar 包保存下来，传给后面的 Job
+      # 因为每个 Job 是独立的服务器，文件不互通，需要用 artifact 传递
+      - name: 上传 jar 包
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: tlias-web-management/target/*.jar
+
   # ========== 任务2：构建前端 ==========
   build-frontend:
     name: 构建前端项目
-    runs-on: ubuntu-latest            # 另一台独立的服务器
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 安装依赖
+        run: npm install
+        working-directory: vue-tlias-management
+
+      - name: 构建生产包
+        run: npm run build
+        working-directory: vue-tlias-management
+
+      # 新增：把 dist/ 保存下来，传给后面的 Job
+      - name: 上传前端产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: vue-tlias-management/dist/
+
+  # ========== 任务3：构建 Docker 镜像 ==========
+  # needs 表示：等任务1和任务2都完成后，才执行任务3
+  docker-build:
+    name: 构建 Docker 镜像
+    runs-on: ubuntu-latest
+    needs: [ build-backend, build-frontend ]   # 依赖前两个任务
 
     steps:
       - name: 拉取代码
         uses: actions/checkout@v4
 
-      - name: 安装 Node.js 18
-        uses: actions/setup-node@v4   # 和 setup-java 类似，官方提供的 Node 安装动作
+      # 下载前面 Job 上传的 jar 包
+      - name: 下载后端 jar 包
+        uses: actions/download-artifact@v4
         with:
-          node-version: '18'
+          name: backend-jar
+          path: tlias-web-management/target/
 
-      - name: 安装依赖
-        run: npm install              # 相当于你本地的 npm install
+      # 下载前面 Job 上传的 dist/
+      - name: 下载前端产物
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: vue-tlias-management/dist/
+
+      # 构建后端 Docker 镜像
+      - name: 构建后端镜像
+        run: docker build -t tlias-server:latest .
+        working-directory: tlias-web-management
+
+      # 构建前端 Docker 镜像
+      - name: 构建前端镜像
+        run: docker build -t tlias-nginx:latest .
         working-directory: vue-tlias-management
 
-      - name: 构建生产包
-        run: npm run build            # 相当于你本地的 npm run build，生成 dist/
-        working-directory: vue-tlias-management
+      # 验证镜像是否构建成功
+      - name: 查看镜像列表
+        run: docker images | grep tlias
